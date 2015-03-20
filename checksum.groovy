@@ -18,6 +18,8 @@ ant.checksum(file: file, property: 'checksum', algorithm: algorithm)
 def generatedChecksum = ant.project.properties.checksum
 if (expectedChecksum) {
 	assert generatedChecksum == expectedChecksum
+	
+	println 'Correct!'
 } else {
 	println generatedChecksum
 }
