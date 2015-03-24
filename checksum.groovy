@@ -5,8 +5,8 @@ cli.v(longOpt: 'verify', args: 1, argName: 'checksum', 'Compare results with thi
 
 def options = cli.parse(args)
 if (options.h || !options.arguments()) {
-	println cli.usage()
-	return
+    println cli.usage()
+    return
 }
 
 def file = new File(options.arguments()[0])
@@ -17,9 +17,9 @@ def ant = new AntBuilder()
 ant.checksum(file: file, property: 'checksum', algorithm: algorithm)
 def generatedChecksum = ant.project.properties.checksum
 if (expectedChecksum) {
-	assert generatedChecksum == expectedChecksum
+    assert generatedChecksum == expectedChecksum
 	
-	println 'Correct!'
+    println 'Correct!'
 } else {
-	println generatedChecksum
+    println generatedChecksum
 }
