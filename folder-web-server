@@ -1,0 +1,30 @@
+@Grab('com.github.yihtserns:camelscript:0.0.1')
+@Grab('org.apache.camel:camel-jetty:2.4.0')
+import org.codehaus.groovy.runtime.StackTraceUtils
+
+def currentFolder = new File('.')
+
+routes {
+    onException(Throwable).process {
+        def ex = it.getProperty('CamelExceptionCaught')
+
+        throw StackTraceUtils.deepSanitize(ex)
+    }
+    
+    from ("jetty:http://localhost:8888?matchOnUriPrefix=true") {
+        process {
+            String relativeFilePath = it.in.getHeader('CamelHttpPath')
+            File file = new File(currentFolder, relativeFilePath)
+
+            if (!file.exists()) {
+                log.warn("Cannot resolve file: {}", file.canonicalPath)
+
+                throw new FileNotFoundException(relativeFilePath)
+            } else {
+                log.info("Resolved file: {}", file.canonicalPath)
+
+                it.out.body = file
+            }
+        }
+    }
+}
