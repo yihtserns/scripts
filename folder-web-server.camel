@@ -16,8 +16,11 @@ routes {
     from ("jetty:http://localhost:8888?matchOnUriPrefix=true") {
         process {
             String relativeFilePath = it.in.getHeader('CamelHttpPath')
-            File file = new File(currentFolder, relativeFilePath)
+            if ("/".equals(relativeFilePath)) {
+                relativeFilePath = "/index.html"
+            }
 
+            File file = new File(currentFolder, relativeFilePath)
             if (!file.exists()) {
                 log.warn("Cannot resolve file: {}", file.canonicalPath)
 
