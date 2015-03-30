@@ -21,7 +21,7 @@ routes {
             }
 
             File file = new File(currentFolder, relativeFilePath)
-            if (!file.exists()) {
+            if (!file.exists() || file.isDirectory()) {
                 log.warn("Cannot resolve file: {}", file.canonicalPath)
 
                 throw new FileNotFoundException(relativeFilePath)
