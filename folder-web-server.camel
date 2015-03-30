@@ -4,6 +4,8 @@ import org.codehaus.groovy.runtime.StackTraceUtils
 
 def currentFolder = new File('.')
 
+disableJMX()
+
 routes {
     onException(Throwable).process {
         def ex = it.getProperty('CamelExceptionCaught')
