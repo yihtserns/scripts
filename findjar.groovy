@@ -46,16 +46,15 @@ if (options.ci) {
 }
 
 def currentDir = new File('.')
-def jarFiles = currentDir
-                .listFilesRecurse(FileType.FILES, { it.name.endsWith('.jar') })
-                .collect { new JarFile(it) }
-                    
-def total = jarFiles.size()
+def files = currentDir.listFilesRecurse(FileType.FILES, { it.name.endsWith('.jar') })
+
+def total = files.size()
 
 def result = []
 int counter = 0
-jarFiles.each {
-    def foundEntries = it.entries()
+files.each {
+    def jarFile = new JarFile(it)
+    def foundEntries = jarFile.entries()
                             .findAll { !it.isDirectory() }
                             .findAll { matcher(it.name) }
                             .collect { it.name }
@@ -79,8 +78,7 @@ result.each {
 }
 
 
-
 class Result {
-    JarFile file
+    def file
     List<String> entryNames
 }
