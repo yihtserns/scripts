@@ -64,12 +64,13 @@ jarFiles.each {
         result << new Result(file: it, entryNames: foundEntries)
     }
     counter++
-    print "\r                                                                 \r"
     int progress = (counter/total) * 100
-    print "Progress: ${progress}% (${counter}/${total})"
+    print "Progress: ${progress}% (${counter}/${total})                       \r"
 }
 
+// Clear progress bar
 print "\r                                                                 \r"
+
 result.each {
     println "${it.file.name}"
     it.entryNames.each {
