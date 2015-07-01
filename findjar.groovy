@@ -71,7 +71,7 @@ files.each {
 print "\r                                                                 \r"
 
 result.each {
-    println "${it.file.name}"
+    println "${it.file.absolutePath}"
     it.entryNames.each {
         println "    ${it}"
     }
