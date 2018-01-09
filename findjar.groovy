@@ -18,6 +18,7 @@ cli.h(longOpt: 'help', 'Show usage')
 cli._(longOpt: 'class', args: 1, argName: 'Fully qualified class name', 'e.g. groovy.grape.GrapeIvy')
 cli._(longOpt: 'exact', args: 1, argName: 'File path', 'e.g. groovy/grape/GrapeIvy.class, META-INF/MANIFEST.MF')
 cli._(longOpt: 'contains', args: 1, argName: 'File path', 'e.g. GrapeIvy, MANIFEST.MF')
+cli._(longOpt: 'manifest', args: 1, argName: 'Keyword', 'Search for a text in MANIFEST.MF')
 cli.ci(longOpt: 'case.insensitive', 'Default: Case sensitive')
 
 def options = cli.parse(args)
@@ -26,23 +27,34 @@ if (options.h) {
     return
 }
 
+Closure<String> norm = { return options.ci ? it.toLowerCase(Locale.ENGLISH) : it }
+Closure<String> findJarEntries = { Closure<String> matchEntryName, JarFile f ->
+    return f.entries()
+                .findAll { !it.isDirectory() }
+                .findAll { matchEntryName(it.name) }
+                .collect { it.name }
+}
+
 Closure<Boolean> matcher
 if (options.class) {
     String exactFilename = options.class.replaceAll('\\.', '/') + ".class"
-    matcher = { it == exactFilename }
+    matcher = findJarEntries.curry { norm(it) == norm(exactFilename) }
 } else if (options.exact) {
     String exactFilename = options.exact
-    matcher = { it == exactFilename }
+    matcher = findJarEntries.curry { norm(it) == norm(exactFilename) }
 } else if (options.contains) {
     String partialFilename = options.contains
-    matcher = { it.contains(partialFilename) }
+    matcher = findJarEntries.curry { norm(it).contains(norm(partialFilename)) }
+} else if (options.manifest) {
+    String keyword = options.manifest
+    matcher = { JarFile f ->
+        if (norm(f.manifest?.mainAttributes.toString()).contains(norm(keyword))) {
+            return ['MANIFEST.MF']
+        }
+    }
 } else {
     println cli.usage()
     return
-}
-if (options.ci) {
-    def filenameMatcher = matcher
-    matcher = { filenameMatcher(it.toLowerCase(Locale.ENGLISH)) }
 }
 
 def currentDir = new File('.')
@@ -54,10 +66,7 @@ def result = []
 int counter = 0
 files.each {
     def jarFile = new JarFile(it)
-    def foundEntries = jarFile.entries()
-                            .findAll { !it.isDirectory() }
-                            .findAll { matcher(it.name) }
-                            .collect { it.name }
+    def foundEntries = matcher(jarFile) ?: []
 
     if (!foundEntries.isEmpty()) {
         result << new Result(file: it, entryNames: foundEntries)
