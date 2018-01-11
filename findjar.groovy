@@ -48,9 +48,17 @@ if (options.class) {
 } else if (options.manifest) {
     String keyword = options.manifest
     matcher = { JarFile f ->
-        if (norm(f.manifest?.mainAttributes.toString()).contains(norm(keyword))) {
-            return ['MANIFEST.MF']
+        def result = []
+
+        f.manifest?.mainAttributes.each {
+            String attributes = it.toString()
+
+            if (norm(attributes).contains(norm(keyword))) {
+                result << attributes
+            }
         }
+
+        return result
     }
 } else {
     println cli.usage()
