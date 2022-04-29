@@ -17,7 +17,7 @@ def ant = new AntBuilder()
 ant.checksum(file: file, property: 'checksum', algorithm: algorithm)
 def generatedChecksum = ant.project.properties.checksum
 if (expectedChecksum) {
-    assert generatedChecksum == expectedChecksum
+    assert generatedChecksum.toUpperCase() == expectedChecksum.toUpperCase()
 	
     println 'Correct!'
 } else {
