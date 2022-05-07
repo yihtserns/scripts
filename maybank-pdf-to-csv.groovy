@@ -5,47 +5,69 @@ import org.apache.pdfbox.text.PDFTextStripper
 import java.util.regex.Pattern
 import com.opencsv.CSVWriter
 
-def pdfFile = new File(args[0])
+def cli = new CliBuilder(usage: "${getClass().simpleName} [options]")
+cli.h(longOpt: "help", "Show usage")
+cli.i(longOpt: "input.folder", args: 1, argName: "Folder path containing PDF files", "e.g. C:\\tmp\\my-savings (defaults to current folder)")
+cli.o(longOpt: "output.file", required: true, args: 1, argName: "File path", "e.g. savings.csv")
 
-def text = PDDocument.load(pdfFile.bytes).withCloseable { new PDFTextStripper().getText(it) }
-def lines = text.split("\r\n")
+def options = cli.parse(args)
+if (options == null) {
+    return
+}
+if (options.h) {
+    println cli.usage()
+    return
+}
 
-def txStartPattern = Pattern.compile("^\\d\\d/\\d\\d/\\d\\d.*")
-def findInfo = { iter ->
-    if (!iter.hasNext()) {
-        return null
-    }
+File sourceFolder = options.i ? new File(options.i) : new File(".")
+File outputFile = new File(options.o)
 
-    def line = iter.next()
-
-    while (!line.startsWith("   ") && iter.hasNext()) {
-        line = iter.next()
-    }
-
-    return line.startsWith("   ") ? line : null
+def pdfFiles = sourceFolder.listFiles().findAll { it.isFile() && getExtension(it).equalsIgnoreCase("pdf") }
+if (pdfFiles.empty) {
+    System.err.println("[ERROR] No PDF file found in ${sourceFolder.canonicalPath}")
+    return
 }
 
 def records = []
-lines.iterator().with { iter ->
-    while (iter.hasNext()) {
-        def line = iter.next()
+pdfFiles.each { pdfFile ->
+    def text = PDDocument.load(pdfFile.bytes).withCloseable { new PDFTextStripper().getText(it) }
+    def lines = text.split("\r\n")
 
-        if (line.matches(txStartPattern)) {
-            def record = new TxRecord()
-            record.data = line
-            findInfo(iter)?.with { record.info1 = it }
-            findInfo(iter)?.with { record.info2 = it }
-            findInfo(iter)?.with { record.info3 = it }
-
-            records << record
+    def txStartPattern = Pattern.compile("^\\d\\d/\\d\\d/\\d\\d.*")
+    def findInfo = { iter ->
+        if (!iter.hasNext()) {
+            return null
         }
 
-        print "Records found: ${records.size()}\r"
+        def line = iter.next()
+
+        while (!line.startsWith("   ") && iter.hasNext()) {
+            line = iter.next()
+        }
+
+        return line.startsWith("   ") ? line : null
     }
 
+    lines.iterator().with { iter ->
+        while (iter.hasNext()) {
+            def line = iter.next()
+
+            if (line.matches(txStartPattern)) {
+                def record = new TxRecord()
+                record.data = line
+                findInfo(iter)?.with { record.info1 = it }
+                findInfo(iter)?.with { record.info2 = it }
+                findInfo(iter)?.with { record.info3 = it }
+
+                records << record
+            }
+
+            print "Records found: ${records.size()}\r"
+        }
+    }
 }
 
-def csvFile = new File("${getFileNameWithoutExt(pdfFile.name)}.csv")
+def csvFile = outputFile
 new CSVWriter(new FileWriter(csvFile)).withCloseable { writer ->
     TxRecord.writeTo(writer, records)
 }
@@ -123,9 +145,9 @@ class TxRecord {
     }
 }
 
-def getFileNameWithoutExt(String filePath) {
-    def paths = filePath.split("/")
+def getExtension(File file) {
+    def paths = file.name.split("/")
     def fileNameWithExt = paths[-1]
 
-    return fileNameWithExt.substring(0, fileNameWithExt.indexOf("."))
+    return fileNameWithExt.substring(fileNameWithExt.indexOf(".") + 1)
 }
