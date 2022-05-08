@@ -39,7 +39,7 @@ if (pdfFiles.empty) {
 def records = []
 pdfFiles.each { pdfFile ->
     def text = PDDocument.load(pdfFile.bytes).withCloseable { new PDFTextStripper().getText(it) }
-    def lines = text.split("\r\n")
+    def lines = text.split("\r\n") as List
 
     def txStartPattern = Pattern.compile("^\\d\\d/\\d\\d/\\d\\d.*")
     def findInfo = { iter ->
@@ -49,6 +49,11 @@ pdfFiles.each { pdfFile ->
 
         def line = iter.next()
 
+        if (line.matches(txStartPattern)) {
+            iter.previous()
+            return null
+        }
+
         while (!line.startsWith("   ") && iter.hasNext()) {
             line = iter.next()
         }
@@ -56,7 +61,7 @@ pdfFiles.each { pdfFile ->
         return line.startsWith("   ") ? line : null
     }
 
-    lines.iterator().with { iter ->
+    lines.listIterator().with { iter ->
         while (iter.hasNext()) {
             def line = iter.next()
 
