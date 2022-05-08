@@ -1,3 +1,11 @@
+/**
+ * <h2>Usage examples</h2>
+ * <code>
+ *  C:\tmp> groovy path/to/maybank-pdf-to-csv.groovy --input.folder path/to/pdf/folder --output.file path/to/result.csv
+ *
+ *  C:\path\to\pdf\folder> groovy path/to/maybank-pdf-to-csv.groovy --output.file path/to/result.csv
+ * </code>
+ */
 @Grab('org.apache.pdfbox:pdfbox:2.0.8')
 @Grab('com.opencsv:opencsv:4.1')
 import org.apache.pdfbox.pdmodel.PDDocument
