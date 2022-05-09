@@ -36,46 +36,29 @@ if (pdfFiles.empty) {
     return
 }
 
+def txStartPattern = Pattern.compile("^\\d\\d/\\d\\d/\\d\\d.*")
 def records = []
 pdfFiles.each { pdfFile ->
     def text = PDDocument.load(pdfFile.bytes).withCloseable { new PDFTextStripper().getText(it) }
     def lines = text.split("\r\n") as List
 
-    def txStartPattern = Pattern.compile("^\\d\\d/\\d\\d/\\d\\d.*")
-    def findInfo = { iter ->
-        if (!iter.hasNext()) {
-            return null
-        }
-
-        def line = iter.next()
+    def currentRecord = null
+    for (line in lines) {
+        print "Records found: ${records.size()}\r"
 
         if (line.matches(txStartPattern)) {
-            iter.previous()
-            return null
+            currentRecord = new TxRecord()
+            currentRecord.data = line
+
+            records << currentRecord
+
+            continue
         }
 
-        while (!line.startsWith("   ") && iter.hasNext()) {
-            line = iter.next()
-        }
+        if (line.startsWith("   ") && currentRecord != null) {
+            currentRecord.addInfo(line)
 
-        return line.startsWith("   ") ? line : null
-    }
-
-    lines.listIterator().with { iter ->
-        while (iter.hasNext()) {
-            def line = iter.next()
-
-            if (line.matches(txStartPattern)) {
-                def record = new TxRecord()
-                record.data = line
-                findInfo(iter)?.with { record.info1 = it }
-                findInfo(iter)?.with { record.info2 = it }
-                findInfo(iter)?.with { record.info3 = it }
-
-                records << record
-            }
-
-            print "Records found: ${records.size()}\r"
+            continue
         }
     }
 }
@@ -93,6 +76,7 @@ class TxRecord {
     String action
     String signedAmount
     String balance
+    List<String> infos = []
     String info1
     String info2
     String info3
@@ -111,7 +95,6 @@ class TxRecord {
                 this.signedAmount = sign + amount
             }
 
-
             this.action = entries[1..-3].join(" ")
 
         } catch (ex) {
@@ -119,16 +102,12 @@ class TxRecord {
         }
     }
 
-    void setInfo1(line) {
-        this.info1 = line.trim()
+    void addInfo(String line) {
+        infos << line.trim()
     }
 
-    void setInfo2(line) {
-        this.info2 = line.trim()
-    }
-
-    void setInfo3(line) {
-        this.info3 = line.trim()
+    String getInfo(int index) {
+        return infos.size() <= index ? null : infos.get(index)
     }
 
     void writeTo(CSVWriter writer) {
@@ -137,12 +116,11 @@ class TxRecord {
 
     @Override
     String toString() {
-        return """
-        ${date} (${action}): ${signedAmount} => ${balance}
-          - ${info1 ?: 'N/A'}
-          - ${info2 ?: 'N/A'}
-          - ${info3 ?: 'N/A'}
-        """.trim().stripIndent()
+        def sb = new StringBuilder("${date} (${action}): ${signedAmount} => ${balance}\r\n")
+        infos.each {
+            sb.append(" - ${it}\r\n")
+        }
+        return sb.toString()
     }
 
     static void writeTo(CSVWriter writer, Collection<TxRecord> records) {
@@ -152,7 +130,7 @@ class TxRecord {
 
         records.each {
             writer.writeNext(
-                    [it.date, it.action, it.signedAmount, it.balance, it.info1, it.info2, it.info3] as String[],
+                    [it.date, it.action, it.signedAmount, it.balance, it.getInfo(0), it.getInfo(1), it.getInfo(2)] as String[],
                     false)
         }
     }
