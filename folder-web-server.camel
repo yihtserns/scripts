@@ -1,6 +1,7 @@
 @Grab('com.github.yihtserns:camelscript:0.0.1')
 @Grab('org.apache.camel:camel-jetty:2.4.0')
 import org.codehaus.groovy.runtime.StackTraceUtils
+import groovy.xml.MarkupBuilder
 
 def currentFolder = new File('.')
 
@@ -13,11 +14,26 @@ routes {
         throw StackTraceUtils.deepSanitize(ex)
     }
     
-    from ("jetty:http://localhost:8888?matchOnUriPrefix=true") {
+    from ("jetty:http://0.0.0.0:8889?matchOnUriPrefix=true") {
         process {
             String relativeFilePath = it.in.getHeader('CamelHttpPath')
             if ("/".equals(relativeFilePath)) {
                 relativeFilePath = "/index.html"
+                if (!new File(currentFolder, relativeFilePath).exists()) {
+                    def sw = new StringWriter()
+                    new MarkupBuilder(sw).html {
+                        ul {
+                            currentFolder.list().each { fileName ->
+                                li {
+                                    a(href: fileName, fileName)
+                                }
+                            }
+                        }
+                    }
+
+                    it.out.body = sw.toString()
+                    return
+                }
             }
 
             File file = new File(currentFolder, relativeFilePath)
