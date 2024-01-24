@@ -1,4 +1,5 @@
 @Grab("com.icegreen:greenmail:2.0.0")
+@Grab("com.sun.activation:jakarta.activation:2.0.1")
 @Grab("org.slf4j:slf4j-simple:1.7.36")
 import com.icegreen.greenmail.mail.MailAddress
 import com.icegreen.greenmail.mail.MovingMessage
@@ -7,10 +8,17 @@ import com.icegreen.greenmail.user.MessageDeliveryHandler
 import com.icegreen.greenmail.user.UserException
 import com.icegreen.greenmail.util.ServerSetup
 import jakarta.mail.MessagingException
+
+import jakarta.mail.BodyPart
+import jakarta.mail.Multipart
 import java.awt.SystemTray
 import java.awt.Toolkit
 import java.awt.TrayIcon
 import com.icegreen.greenmail.util.GreenMail
+
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Function
 
@@ -25,16 +33,63 @@ def trayIcon = new TrayIcon(Toolkit.defaultToolkit.createImage(bytesIcon), "Gree
 SystemTray.systemTray.add(trayIcon)
 def notify = { String title, String message ->
     trayIcon.displayMessage(title, message, TrayIcon.MessageType.NONE)
+    Thread.sleep(1000)
 }
 
-def greenMail = new GreenMail(ServerSetup.SMTP)
+def emailFolder = new File("/tmp/greenmail").tap {
+    if (!it.exists()) {
+        assert it.mkdirs()
+    }
+    // We want empty folder on start
+    it.listFiles()*.delete()
+}
+def saveMail = { String address, MovingMessage email ->
+    def baseFileName = "${email.message.sentDate.time}-${address}"
+
+    def emailFile
+    int count = 0
+    do {
+        emailFile = new File(emailFolder, "${baseFileName}-${count++}.md")
+    } while (emailFile.exists())
+
+    def lines = [
+            "**From**: ${email.message.from}",
+            "**To**: ${email.message.allRecipients}",
+            "**Subject**: ${email.message.subject}",
+    ]
+
+    if (email.message.content instanceof Multipart) {
+        def multipart = (Multipart) email.message.content
+        multipart.count.times { i ->
+            def part = multipart.getBodyPart(i)
+            if (part.isMimeType("text/html")) {
+                lines << "**Body**: ${part.content}"
+            } else if (part.isMimeType("application/pdf")) {
+                new File(emailFolder, "${emailFile.name}-${part.fileName}-${i}.pdf").bytes = part.inputStream.bytes
+            } else {
+                throw new UnsupportedOperationException("Unhandled content type: ${part.contentType}")
+            }
+        }
+    } else {
+        lines << "**Body**: ${email.message.content}"
+    }
+
+    emailFile.text = lines.join("\r\n").stripIndent().trim()
+}
+
+def greenMail = new GreenMail(ServerSetup.SMTP.createCopy("0.0.0.0"))
+greenMail.setUser("nobody", "none") // TODO:
 greenMail.userManager.messageDeliveryHandler = new MessageDeliveryHandler() {
     private Map<String, GreenMailUser> email2User = new ConcurrentHashMap<>()
-    @Override
-    GreenMailUser handle(MovingMessage msg, MailAddress mailAddress) throws MessagingException, UserException {
-        notify(mailAddress.email, msg.message.subject)
 
-        return email2User.computeIfAbsent(mailAddress.email.trim().toLowerCase(Locale.ROOT), { email ->
+    @Override
+    synchronized GreenMailUser handle(MovingMessage msg, MailAddress mailAddress) throws MessagingException, UserException {
+        def normalizedEmailAddress = mailAddress.email.trim().toLowerCase(Locale.ROOT)
+
+        notify(mailAddress.email, msg.message.subject)
+        saveMail(normalizedEmailAddress, msg)
+
+        return email2User.computeIfAbsent(normalizedEmailAddress, { email ->
             return greenMail.userManager.createUser(email, email, email)
         })
     }
