@@ -16,6 +16,7 @@ import java.awt.Toolkit
 import java.awt.TrayIcon
 import com.icegreen.greenmail.util.GreenMail
 
+import java.nio.charset.StandardCharsets
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -74,7 +75,7 @@ def saveMail = { String address, MovingMessage email ->
         lines << "**Body**: ${email.message.content}"
     }
 
-    emailFile.text = lines.join("\r\n").stripIndent().trim()
+    emailFile.setText(lines.join("\r\n").stripIndent().trim(), StandardCharsets.UTF_8.name())
 }
 
 def greenMail = new GreenMail(ServerSetup.SMTP.createCopy("0.0.0.0"))
