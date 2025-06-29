@@ -15,7 +15,7 @@ import com.opencsv.CSVWriter
 
 def cli = new CliBuilder(usage: "${getClass().simpleName} [options]")
 cli.h(longOpt: "help", "Show usage")
-cli.i(longOpt: "input.folder", args: 1, argName: "Folder path containing PDF files", "e.g. C:\\tmp\\my-savings (defaults to current folder)")
+cli.i(longOpt: "input.folder", required:true, args: 1, argName: "Folder path containing PDF files", "e.g. C:\\tmp\\my-savings")
 cli.o(longOpt: "output.file", required: true, args: 1, argName: "File path", "e.g. savings.csv")
 
 def options = cli.parse(args)
@@ -27,7 +27,7 @@ if (options.h) {
     return
 }
 
-File sourceFolder = options.i ? new File(options.i) : new File(".")
+File sourceFolder = new File(options.i)
 File outputFile = new File(options.o)
 
 def pdfFiles = sourceFolder.listFiles().findAll { it.isFile() && getExtension(it).equalsIgnoreCase("pdf") }
