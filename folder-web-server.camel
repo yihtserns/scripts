@@ -2,6 +2,7 @@
 @Grab('org.apache.camel:camel-jetty:2.4.0')
 import org.codehaus.groovy.runtime.StackTraceUtils
 import groovy.xml.MarkupBuilder
+import org.apache.camel.Exchange
 
 def currentFolder = new File('.')
 
@@ -40,7 +41,7 @@ routes {
             if (!file.exists() || file.isDirectory()) {
                 log.warn("Cannot resolve file: {}", file.canonicalPath)
 
-                throw new FileNotFoundException(relativeFilePath)
+                it.out.setHeader(Exchange.HTTP_RESPONSE_CODE, 404)
             } else {
                 log.info("Resolved file: {}", file.canonicalPath)
 
