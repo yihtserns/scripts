@@ -3,7 +3,7 @@ import org.apache.pdfbox.tools.PDFToImage
 
 def pdfFiles = new File(".").listFiles().findAll { it.isFile() && getExtension(it).equalsIgnoreCase("pdf") }
 pdfFiles.each { file ->
-    new PDFToImage(imageFormat: "png", infile: file).call()
+    new PDFToImage(imageFormat: "png", infile: file, dpi: 300).call()
     println "Converted ${file.absolutePath} to .png"
 }
 
