@@ -66,7 +66,7 @@ if (options.class) {
 }
 
 def currentDir = new File('.')
-def files = currentDir.listFilesRecurse(FileType.FILES, { it.name.endsWith('.jar') })
+def files = currentDir.listFilesRecurse(FileType.FILES, { it.name.endsWith('.jar') || it.name.endsWith('.jmod') })
 
 def total = files.size()
 
